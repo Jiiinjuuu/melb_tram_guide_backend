@@ -1,0 +1,4 @@
+# backend
+/backend/melb_tram_api/vendor/
+backend/melb_tram_api/.env
+backend/melb_tram_api/.DS_Store
