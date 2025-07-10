@@ -4,6 +4,7 @@
 session_start();
 
 require_once __DIR__ . '/../includes/cors.php';
+require_once __DIR__ . '/../includes/env.php';  // ✅ 환경 변수 로드
 require_once __DIR__ . '/db_connect.php';
 
 header("Content-Type: application/json");
@@ -27,11 +28,11 @@ try {
     $stmt->execute(['user_id' => $user_id]);
     $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // ✅ image_url 앞에 도메인 붙여서 image_full_url 추가
-    $baseUrl = 'http://localhost/melb_tram_api/public';
+    // ✅ .env에서 이미지 base URL 불러오기
+    $baseUrl = rtrim($_ENV['IMAGE_BASE_URL'], '/');
     foreach ($reviews as &$review) {
         if (!empty($review['image_url'])) {
-            $review['image_full_url'] = $baseUrl . $review['image_url'];
+            $review['image_full_url'] = $baseUrl . '/' . ltrim($review['image_url'], '/');
         } else {
             $review['image_full_url'] = null;
         }
