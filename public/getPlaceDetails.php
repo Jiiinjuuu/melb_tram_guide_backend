@@ -42,6 +42,7 @@ try {
     // 4. 결과 통합
     $response = [
         "place" => $place,
+        "is_stampPlace" => intval($place['is_stampPlace']), // ✅ 최상단에 따로 추가
         "rating" => $ratingData,
         "recent_reviews" => $recentReviews
     ];

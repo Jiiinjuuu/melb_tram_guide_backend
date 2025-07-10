@@ -7,7 +7,7 @@ require_once __DIR__ . '/db_connect.php';
 header('Content-Type: application/json');
 
 // user_id 파라미터 확인
-$user_id = $_GET['user_id'] ?? null;
+$user_id = $_GET['user_id'] ?? NULL;
 
 if (!$user_id) {
     http_response_code(400);
