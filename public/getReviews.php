@@ -16,13 +16,13 @@ if (!isset($_GET['place_id'])) {
 $place_id = $_GET['place_id'];
 
 try {
-    $stmt = $pdo->prepare("
-        SELECT r.*, u.name
-        FROM reviews r
-        JOIN users u ON r.user_id = u.id
-        WHERE r.place_id = :place_id
-        ORDER BY r.created_at DESC
-    ");
+$stmt = $pdo->prepare("
+  SELECT r.id, r.content, r.rating, r.created_at, r.image_url, u.name AS username
+  FROM reviews r
+  JOIN users u ON r.user_id = u.id
+  WHERE r.place_id = :place_id
+  ORDER BY r.created_at DESC
+");
     $stmt->execute([':place_id' => $place_id]);
     $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 

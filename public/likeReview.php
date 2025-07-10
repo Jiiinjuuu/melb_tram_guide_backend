@@ -1,55 +1,43 @@
 <?php
-// melb_tram_api/public/likeReview.php
-
 require_once "../includes/cors.php";
 require_once "db_connect.php";
 
 header("Content-Type: application/json");
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(["error" => "POST 요청만 허용됩니다."]);
-    exit();
-}
-
-$data = json_decode(file_get_contents("php://input"));
-$user_id = $data->user_id ?? null;
-$review_id = $data->review_id ?? null;
-
-if (!$user_id || !$review_id) {
-    http_response_code(400);
-    echo json_encode(["error" => "user_id와 review_id가 필요합니다."]);
-    exit();
-}
-
 try {
-    // 이미 좋아요한 상태인지 확인
-    $stmt = $pdo->prepare("SELECT * FROM likes WHERE user_id = :user_id AND review_id = :review_id");
-    $stmt->execute([
-        ':user_id' => $user_id,
-        ':review_id' => $review_id
-    ]);
+    $data = json_decode(file_get_contents("php://input"));
 
-    if ($stmt->rowCount() > 0) {
-        // 이미 좋아요했으면 삭제
-        $delete = $pdo->prepare("DELETE FROM likes WHERE user_id = :user_id AND review_id = :review_id");
-        $delete->execute([
-            ':user_id' => $user_id,
-            ':review_id' => $review_id
-        ]);
-        echo json_encode(["status" => "unliked"]);
-    } else {
-        // 없으면 추가
-        $insert = $pdo->prepare("INSERT INTO likes (user_id, review_id) VALUES (:user_id, :review_id)");
-        $insert->execute([
-            ':user_id' => $user_id,
-            ':review_id' => $review_id
-        ]);
-        echo json_encode(["status" => "liked"]);
+    if (!isset($data->review_id) || !isset($data->user_id)) {
+        echo json_encode(["success" => false, "message" => "필수 데이터 없음"]);
+        exit;
     }
 
+    $review_id = $data->review_id;
+    $user_id = $data->user_id;
+
+    // 1. 중복 체크
+    $checkStmt = $pdo->prepare("SELECT * FROM review_likes WHERE review_id = ? AND user_id = ?");
+    $checkStmt->execute([$review_id, $user_id]);
+
+    if ($checkStmt->rowCount() > 0) {
+        echo json_encode(["success" => false, "message" => "이미 좋아요를 눌렀습니다."]);
+        exit;
+    }
+
+    // 2. 좋아요 테이블에 삽입
+    $insertStmt = $pdo->prepare("INSERT INTO review_likes (review_id, user_id) VALUES (?, ?)");
+    $insertStmt->execute([$review_id, $user_id]);
+
+    // 3. 리뷰 테이블 좋아요 수 증가
+    $updateStmt = $pdo->prepare("UPDATE reviews SET likes = likes + 1 WHERE id = ?");
+    $updateStmt->execute([$review_id]);
+
+    // 4. 증가된 좋아요 수 반환
+    $countStmt = $pdo->prepare("SELECT likes FROM reviews WHERE id = ?");
+    $countStmt->execute([$review_id]);
+    $likes = $countStmt->fetchColumn();
+
+    echo json_encode(["success" => true, "new_likes" => (int)$likes]);
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode(["error" => "DB 오류: " . $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => $e->getMessage()]);
 }
-?>
