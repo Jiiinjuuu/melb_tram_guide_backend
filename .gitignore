@@ -1,4 +1,15 @@
-# backend
-/backend/melb_tram_api/vendor/
-backend/melb_tram_api/.env
-backend/melb_tram_api/.DS_Store
+# macOS
+.DS_Store
+
+# 개발툴 관련
+.vscode/
+.idea/
+
+# 임시파일
+*.log
+*.swp
+*.swo
+
+# 🚫 중요: 다음 항목들은 주석처리 또는 제거해야 함
+# .env         ← 이거 넣지 말 것
+# /vendor/     ← 이거 넣지 말 것 (Render 배포용)
