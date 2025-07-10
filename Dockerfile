@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y nano \
 RUN a2enmod rewrite
 
 # 프로젝트 복사
-COPY . /var/www/html/
+COPY ./public/ /var/www/html/
 
 # 퍼미션 설정
 RUN chown -R www-data:www-data /var/www/html \
