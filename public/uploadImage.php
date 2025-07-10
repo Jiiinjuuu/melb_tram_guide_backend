@@ -1,7 +1,9 @@
 <?php
 // melb_tram_api/public/uploadImage.php
 
-require_once "../includes/cors.php";
+require_once __DIR__ . '/../includes/cors.php';
+require_once __DIR__ . '/db_connect.php';
+
 header("Content-Type: application/json");
 
 $uploadDir = "../uploads/";

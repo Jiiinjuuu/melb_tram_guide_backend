@@ -16,19 +16,28 @@ if (!isset($_GET['place_id'])) {
 $place_id = $_GET['place_id'];
 
 try {
-$stmt = $pdo->prepare("
-  SELECT r.id, r.content, r.rating, r.created_at, r.image_url, u.name AS username
-  FROM reviews r
-  JOIN users u ON r.user_id = u.id
-  WHERE r.place_id = :place_id
-  ORDER BY r.created_at DESC
-");
+    $stmt = $pdo->prepare("
+        SELECT r.id, r.content, r.rating, r.created_at, r.image_url, u.name AS username
+        FROM reviews r
+        JOIN users u ON r.user_id = u.id
+        WHERE r.place_id = :place_id
+        ORDER BY r.created_at DESC
+    ");
     $stmt->execute([':place_id' => $place_id]);
     $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // ✅ image_full_url 추가
+    $baseUrl = 'http://localhost/melb_tram_api/public';
+    foreach ($reviews as &$review) {
+        if (!empty($review['image_url'])) {
+            $review['image_full_url'] = $baseUrl . $review['image_url'];
+        } else {
+            $review['image_full_url'] = null;
+        }
+    }
 
     echo json_encode($reviews);
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(["error" => "DB 오류: " . $e->getMessage()]);
 }
-?>

@@ -1,19 +1,21 @@
 <?php
 // melb_tram_api/public/getUserStamps.php
 
+session_start(); // ✅ 세션 시작
+
 require_once __DIR__ . '/../includes/cors.php';
 require_once __DIR__ . '/db_connect.php';
 
 header('Content-Type: application/json');
 
-// user_id 파라미터 확인
-$user_id = $_GET['user_id'] ?? NULL;
-
-if (!$user_id) {
-    http_response_code(400);
-    echo json_encode(["error" => "user_id는 필수입니다."]);
+// ✅ 세션에서 user_id 확인
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401); // 인증 필요
+    echo json_encode(["error" => "로그인이 필요합니다."]);
     exit();
 }
+
+$user_id = $_SESSION['user_id'];
 
 try {
     // 스탬프 받은 명소 정보 조회

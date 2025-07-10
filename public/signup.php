@@ -1,6 +1,8 @@
 <?php
-require_once __DIR__ . '/../includes/cors.php';  // CORS
-require_once __DIR__ . '/db_connect.php';        // DB 연결 포함
+session_start(); // ✅ 세션 시작 (자동 로그인 위해 필요)
+
+require_once __DIR__ . '/../includes/cors.php';
+require_once __DIR__ . '/db_connect.php';
 
 header('Content-Type: application/json');
 
@@ -31,7 +33,22 @@ try {
     $stmt = $pdo->prepare("INSERT INTO users (name, email, password) VALUES (?, ?, ?)");
     $stmt->execute([$name, $email, $password]);
 
-    echo json_encode(["success" => true, "message" => "회원가입 완료"]);
+    // 방금 등록한 사용자 정보 가져오기
+    $newUserId = $pdo->lastInsertId();
+    $stmt = $pdo->prepare("SELECT id, name, email FROM users WHERE id = ?");
+    $stmt->execute([$newUserId]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // ✅ 자동 로그인 처리
+    $_SESSION['user_id'] = $user['id'];
+    $_SESSION['user_name'] = $user['name'];
+    $_SESSION['user_email'] = $user['email'];
+
+    echo json_encode([
+        "success" => true,
+        "message" => "회원가입 완료 및 자동 로그인 되었습니다.",
+        "user" => $user
+    ]);
 
 } catch (Exception $e) {
     http_response_code(500);

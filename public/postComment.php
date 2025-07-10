@@ -1,19 +1,29 @@
 <?php
+session_start(); // ✅ 세션 시작
+
 require_once "../includes/cors.php";
 require_once "db_connect.php";
 
 header("Content-Type: application/json");
 
+// ✅ 로그인 상태 확인
+if (!isset($_SESSION['user_id'])) {
+  http_response_code(401);
+  echo json_encode(["success" => false, "message" => "로그인이 필요합니다."]);
+  exit;
+}
+
 try {
   $data = json_decode(file_get_contents("php://input"));
 
-  if (!isset($data->review_id, $data->user_id, $data->content)) {
+  if (!isset($data->review_id, $data->content)) {
+    http_response_code(400);
     echo json_encode(["success" => false, "message" => "필수 입력 누락"]);
     exit;
   }
 
   $review_id = $data->review_id;
-  $user_id = $data->user_id;
+  $user_id = $_SESSION['user_id']; // ✅ 세션에서 user_id 가져옴
   $content = trim($data->content);
 
   $stmt = $pdo->prepare("INSERT INTO comments (review_id, user_id, content) VALUES (?, ?, ?)");
@@ -37,5 +47,6 @@ try {
     ]
   ]);
 } catch (PDOException $e) {
-  echo json_encode(["success" => false, "message" => $e->getMessage()]);
+  http_response_code(500);
+  echo json_encode(["success" => false, "message" => "DB 오류: " . $e->getMessage()]);
 }

@@ -1,6 +1,10 @@
+// 로그인 API
+
 <?php
-require_once __DIR__ . '/../includes/cors.php';  // CORS
-require_once __DIR__ . '/db_connect.php';        // DB 연결 포함
+session_start();
+
+require_once __DIR__ . '/../includes/cors.php';
+require_once __DIR__ . '/db_connect.php';
 
 header('Content-Type: application/json');
 
@@ -21,6 +25,11 @@ try {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($user && password_verify($password, $user['password'])) {
+        
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['user_name'] = $user['name'];
+        $_SESSION['user_email'] = $user['email'];
+
         echo json_encode([
             "success" => true,
             "user" => [

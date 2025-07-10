@@ -30,6 +30,14 @@ try {
         exit;
     }
 
+    // ✅ 이미지 전체 경로 추가
+    if (!empty($review['image_url'])) {
+        $baseUrl = 'http://localhost/melb_tram_api/public';
+        $review['image_full_url'] = $baseUrl . $review['image_url'];
+    } else {
+        $review['image_full_url'] = null;
+    }
+
     echo json_encode($review);
 } catch (PDOException $e) {
     http_response_code(500);
