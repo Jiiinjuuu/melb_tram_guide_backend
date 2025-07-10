@@ -2,6 +2,7 @@
 // melb_tram_api/public/getReviewById.php
 
 require_once "../includes/cors.php";
+require_once "../includes/env.php";     // ✅ 환경변수 불러오기
 require_once "db_connect.php";
 
 header("Content-Type: application/json");
@@ -30,10 +31,10 @@ try {
         exit;
     }
 
-    // ✅ 이미지 전체 경로 추가
+    // ✅ 이미지 전체 경로 추가 (.env에서 불러온 base URL 사용)
     if (!empty($review['image_url'])) {
-        $baseUrl = 'http://localhost/melb_tram_api/public';
-        $review['image_full_url'] = $baseUrl . $review['image_url'];
+        $baseUrl = rtrim($_ENV['IMAGE_BASE_URL'], '/');
+        $review['image_full_url'] = $baseUrl . '/' . ltrim($review['image_url'], '/');
     } else {
         $review['image_full_url'] = null;
     }

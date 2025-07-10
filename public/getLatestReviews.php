@@ -1,34 +1,35 @@
 <?php
-// melb_tram_api/public/getReviews.php
+// melb_tram_api/public/getLatestReviews.php
 
 require_once "../includes/cors.php";
-require_once "../includes/env.php";     // ✅ 환경변수 추가
+require_once "../includes/env.php";   // ← 환경변수 불러오기
 require_once "db_connect.php";
 
 header("Content-Type: application/json");
 
-// place_id 필수
-if (!isset($_GET['place_id'])) {
-    http_response_code(400);
-    echo json_encode(["error" => "place_id가 필요합니다."]);
-    exit();
-}
-
-$place_id = $_GET['place_id'];
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = 10;
+$offset = ($page - 1) * $limit;
 
 try {
     $stmt = $pdo->prepare("
-        SELECT r.id, r.content, r.rating, r.created_at, r.image_url, u.name AS username
+        SELECT r.id, r.content, r.rating, r.created_at, r.image_url, 
+               u.name AS username,
+               p.name AS place_name
         FROM reviews r
         JOIN users u ON r.user_id = u.id
-        WHERE r.place_id = :place_id
+        JOIN places p ON r.place_id = p.id
         ORDER BY r.created_at DESC
+        LIMIT :limit OFFSET :offset
     ");
-    $stmt->execute([':place_id' => $place_id]);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // ✅ .env에서 base URL 가져오기
+    // ✅ .env에서 IMAGE_BASE_URL 사용
     $baseUrl = rtrim($_ENV['IMAGE_BASE_URL'], '/');
+
     foreach ($reviews as &$review) {
         if (!empty($review['image_url'])) {
             $review['image_full_url'] = $baseUrl . '/' . ltrim($review['image_url'], '/');

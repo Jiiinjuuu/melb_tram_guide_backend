@@ -1,17 +1,17 @@
 <?php
-// melb_tram_api/db_connect.php
+// melb_tram_api/public/db_connect.php
 
-$host = 'localhost';
-$dbname = 'melbourne_tram_guide';
+$host = 'yamabiko.proxy.rlwy.net';
+$port = '55085';
+$dbname = 'railway';
 $username = 'root';
-$password = ''; // XAMPP 기본값. 설정 다르면 맞게 바꿔줘
+$password = 'LLeiCmOoBITYlbPUxlNtUdfUfXLNXMyt';
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $username, $password);
+    $pdo = new PDO("mysql:host=$host;port=$port;dbname=$dbname;charset=utf8mb4", $username, $password);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(["error" => "데이터베이스 연결 실패: " . $e->getMessage()]);
+    echo json_encode(["error" => "DB 연결 실패: " . $e->getMessage()]);
     exit;
 }
-?>

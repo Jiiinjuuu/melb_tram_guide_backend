@@ -1,50 +1,56 @@
-// 로그인 API
-
 <?php
+// 세션 시작
 session_start();
 
 require_once __DIR__ . '/../includes/cors.php';
 require_once __DIR__ . '/db_connect.php';
 
-header('Content-Type: application/json');
-
-$data = json_decode(file_get_contents("php://input"));
-
-if (!isset($data->email) || !isset($data->password)) {
-    http_response_code(400);
-    echo json_encode(["error" => "이메일과 비밀번호를 입력해주세요."]);
-    exit;
-}
-
-$email = $data->email;
-$password = $data->password;
+header("Content-Type: application/json; charset=utf-8");
 
 try {
+    // 요청 본문에서 JSON 데이터 읽기
+    $data = json_decode(file_get_contents("php://input"), true);
+    $email = $data["email"] ?? "";
+    $password = $data["password"] ?? "";
+
+    // 이메일 또는 비밀번호 비어있을 때
+    if (empty($email) || empty($password)) {
+        echo json_encode([
+            "success" => false,
+            "error" => "이메일과 비밀번호를 모두 입력해주세요."
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // 사용자 조회
     $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($user && password_verify($password, $user['password'])) {
-        
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['user_name'] = $user['name'];
-        $_SESSION['user_email'] = $user['email'];
+    // 비밀번호 검증
+    if ($user && password_verify($password, $user["password"])) {
+        // 세션에 사용자 정보 저장
+        $_SESSION['user_id'] = $user["id"];
+        $_SESSION['user_name'] = $user["name"];
+        $_SESSION['user_email'] = $user["email"];
 
         echo json_encode([
             "success" => true,
             "user" => [
-                "id" => $user['id'],
-                "name" => $user['name'],
-                "email" => $user['email']
+                "name" => $user["name"],
+                "email" => $user["email"]
             ]
-        ]);
+        ], JSON_UNESCAPED_UNICODE);
     } else {
-        http_response_code(401);
-        echo json_encode(["error" => "이메일 또는 비밀번호가 일치하지 않습니다."]);
+        echo json_encode([
+            "success" => false,
+            "error" => "이메일 또는 비밀번호가 올바르지 않습니다."
+        ], JSON_UNESCAPED_UNICODE);
     }
-
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(["error" => "서버 오류: " . $e->getMessage()]);
+    echo json_encode([
+        "success" => false,
+        "error" => "서버 오류: " . $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE);
 }
-?>
