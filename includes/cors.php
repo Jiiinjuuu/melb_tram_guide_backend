@@ -1,5 +1,5 @@
 <?php
-$origin = "http://localhost:3000";  // 프론트 주소 명확히 설정
+$origin = "https://melb-stamp-tour.netlify.app";  // 프론트 주소 명확히 설정
 
 header("Access-Control-Allow-Origin: $origin");
 header("Access-Control-Allow-Credentials: true"); // ✅ 이게 있어야 쿠키 저장됨
