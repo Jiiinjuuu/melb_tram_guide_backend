@@ -1,7 +1,12 @@
 <?php
 // melb_tram_api/public/getLikesCount.php
 
-require_once "../includes/cors.php";
+<?php
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
+$dotenv->load();
+
 require_once "db_connect.php";
 
 header("Content-Type: application/json");

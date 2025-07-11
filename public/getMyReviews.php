@@ -1,9 +1,14 @@
 <?php
 // melb_tram_api/public/getMyReviews.php
 
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
+$dotenv->load();
+
+
 session_start();
 
-require_once __DIR__ . '/../includes/cors.php';
 require_once __DIR__ . '/../includes/env.php';  // ✅ 환경 변수 로드
 require_once __DIR__ . '/db_connect.php';
 
