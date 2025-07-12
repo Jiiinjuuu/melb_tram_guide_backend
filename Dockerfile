@@ -7,11 +7,13 @@ RUN docker-php-ext-install pdo pdo_mysql mysqli
 # Apache 모듈 활성화
 RUN a2enmod rewrite headers
 
-# CORS 허용 설정
-RUN apt-get update && apt-get install -y nano curl unzip \
-  && echo "Header set Access-Control-Allow-Origin \"*\"" >> /etc/apache2/apache2.conf
+# 도구 설치
+RUN apt-get update && apt-get install -y nano curl unzip
 
-# ✅ Composer 설치 (한 번만)
+# CORS 허용 (headers 모듈이 활성화된 이후에 설정해야 함)
+RUN echo "Header set Access-Control-Allow-Origin \"*\"" >> /etc/apache2/apache2.conf
+
+# ✅ Composer 설치
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # 프로젝트 파일 복사
