@@ -14,6 +14,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
+
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => '', // 동일 도메인 내부라면 빈값으로
+    'secure' => true, // Netlify는 HTTPS 배포이므로 true
+    'httponly' => true,
+    'samesite' => 'None'
+]);
+
 session_start();
 
 require_once __DIR__ . '/db_connect.php';

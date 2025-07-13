@@ -1,15 +1,27 @@
 <?php
 
-header("Access-Control-Allow-Origin: https://melb-stamp-tour.netlify.app");
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+$origin = "https://melb-stamp-tour.netlify.app";
+
+if (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] === $origin) {
+    header("Access-Control-Allow-Origin: $origin");
+    header("Access-Control-Allow-Credentials: true");
+    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type, Authorization");
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => '', // 동일 도메인 내부라면 빈값으로
+    'secure' => true, // Netlify는 HTTPS 배포이므로 true
+    'httponly' => true,
+    'samesite' => 'None'
+]);
 session_start(); // ✅ 세션 시작 (자동 로그인 위해 필요)
 
 require_once __DIR__ . '/db_connect.php';
