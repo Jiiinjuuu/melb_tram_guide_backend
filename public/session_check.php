@@ -6,6 +6,19 @@ header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
+header("Content-Type: application/json");
+echo json_encode([
+    "msg" => "✅ 수정된 코드 반영됨",
+    "origin" => $_SERVER['HTTP_ORIGIN'] ?? '없음',
+    "method" => $_SERVER['REQUEST_METHOD']
+]);
+exit;
+
+header("Access-Control-Allow-Origin: https://melb-stamp-tour.netlify.app");
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
