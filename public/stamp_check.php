@@ -29,13 +29,14 @@ require_once __DIR__ . '/db_connect.php';
 header('Content-Type: application/json');
 
 // ✅ 로그인된 사용자 확인
-if (!isset($_SESSION['user'])) {
+if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => '로그인이 필요합니다.']);
     exit;
 }
 
-$user_id = $_SESSION['user']['id'];
+$user_id = $_SESSION['user_id'];
+
 
 // ✅ place_id 유효성 검사
 $data = json_decode(file_get_contents("php://input"), true);
