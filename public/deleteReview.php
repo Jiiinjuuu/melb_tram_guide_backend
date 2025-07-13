@@ -1,15 +1,30 @@
 <?php
 // melb_tram_api/public/deleteReview.php
 
-header("Access-Control-Allow-Origin: https://melb-stamp-tour.netlify.app");
-header("Access-Control-Allow-Credentials: true");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+$origin = "https://melb-stamp-tour.netlify.app";
+
+if (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] === $origin) {
+    header("Access-Control-Allow-Origin: $origin");
+    header("Access-Control-Allow-Credentials: true");
+    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+    header("Access-Control-Allow-Headers: Content-Type, Authorization");
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
+
+// ✅ 세션 설정 및 시작
+session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'domain' => '',
+    'secure' => true,
+    'httponly' => true,
+    'samesite' => 'None'
+]);
+session_start();
 
 require_once "db_connect.php";
 
@@ -21,18 +36,26 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit();
 }
 
+// ✅ 로그인 사용자 확인
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode(["error" => "로그인이 필요합니다."]);
+    exit();
+}
+
+$user_id = $_SESSION['user_id'];
+
 $data = json_decode(file_get_contents("php://input"));
-$user_id = $data->user_id ?? null;
 $review_id = $data->review_id ?? null;
 
-if (!$user_id || !$review_id) {
+if (!$review_id) {
     http_response_code(400);
-    echo json_encode(["error" => "user_id와 review_id가 필요합니다."]);
+    echo json_encode(["error" => "review_id가 필요합니다."]);
     exit();
 }
 
 try {
-    // 내가 쓴 후기인지 확인
+    // ✅ 내가 쓴 후기인지 확인
     $check = $pdo->prepare("SELECT * FROM reviews WHERE id = :review_id AND user_id = :user_id");
     $check->execute([
         ':review_id' => $review_id,
@@ -45,7 +68,7 @@ try {
         exit();
     }
 
-    // 삭제
+    // ✅ 삭제
     $delete = $pdo->prepare("DELETE FROM reviews WHERE id = :review_id");
     $delete->execute([':review_id' => $review_id]);
 
@@ -54,4 +77,3 @@ try {
     http_response_code(500);
     echo json_encode(["error" => "DB 오류: " . $e->getMessage()]);
 }
-?>
