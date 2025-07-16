@@ -11,7 +11,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-
 require_once "db_connect.php";
 
 header("Content-Type: application/json");
