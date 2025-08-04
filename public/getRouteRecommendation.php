@@ -1,44 +1,83 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
 
-// CORS 허용 (개발용, 보안 신경 안 써도 될 때)
-header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+// 환경변수 파일 로드
+require_once __DIR__ . '/../includes/config.php';
 
-// OPTIONS 프리플라이트 요청 처리
+// CORS 설정
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowed_origins = explode(',', ALLOWED_ORIGINS);
+if (in_array($origin, $allowed_origins)) {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    header("Access-Control-Allow-Origin: " . APP_URL);
+}
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// 1. 설문 데이터 파싱 (POST)
+// 사용자 입력 파싱
 $input = json_decode(file_get_contents('php://input'), true);
 $user_interest = $input['interest'] ?? '관광';
 $user_time = $input['time'] ?? '오전';
+$user_latitude = $input['latitude'] ?? null;
+$user_longitude = $input['longitude'] ?? null;
 
-// 2. 임시 추천 경로 생성 (샘플 데이터)
-$route = [
-    ["name" => "플린더스 스트리트 역", "type" => "역"],
-    ["name" => "페더레이션 광장", "type" => "관광지"],
-    ["name" => "멜버른 박물관", "type" => "박물관"],
-    ["name" => "카페 데 그라운즈", "type" => "카페"]
-];
-
-// 3. Gemini API 호출 (REST, cURL)
-$api_key = 'AIzaSyAohHn9GzPsjMoxkTyD2ToW4dI5PeNSEUI';
-$gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $api_key;
-
-// 프롬프트 생성 (장소별 순서, 각 장소에서 할 일, 다음 장소까지 소요 시간, 3줄 이내)
-$prompt = "아래는 멜버른 트램 여행 추천 경로입니다. 각 장소별로 한 줄씩, 해당 장소에서 할 일과 다음 장소까지 이동 시간(약 15분)을 포함해 설명해 주세요. 예시: 1. [장소명]: [설명]";
-foreach ($route as $idx => $place) {
-    $next = isset($route[$idx + 1]) ? $route[$idx + 1]['name'] : null;
-    $prompt .= "\n" . ($idx + 1) . ". " . $place['name'] . ":";
-    if ($next) {
-        $prompt .= " 다음 장소까지 이동 시간 약 15분.";
-    }
+// Gemini API 키 확인
+$api_key = GEMINI_API_KEY;
+if (empty($api_key)) {
+    http_response_code(500);
+    echo json_encode(["error" => "Gemini API 키가 설정되지 않았습니다."]);
+    exit();
 }
 
+$gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $api_key;
+
+// 사용자 위치 정보
+$location_info = $user_latitude && $user_longitude
+    ? "사용자의 현재 위치: 위도 {$user_latitude}, 경도 {$user_longitude}"
+    : "사용자의 현재 위치 정보가 없습니다.";
+
+// Gemini에게 보낼 프롬프트
+$prompt = <<<EOT
+당신은 멜버른 트램 여행 전문가입니다.
+아래 사용자 조건을 참고하여 여행 루트를 추천하고, JSON 형식으로만 출력해 주세요.
+
+{$location_info}
+관심사: {$user_interest}
+시간대: {$user_time}
+노선 기준: 멜버른 City Circle (35번 트램) 노선을 중심으로 추천
+장소 조건: 실제 존재하는 명소만 포함 (역, 광장, 박물관, 카페 등 다양하게)
+
+🎯 출력 형식 (꼭 지킬 것):
+{
+  "route": [
+    {
+      "name": "플린더스 스트리트 역",
+      "type": "역",
+      "description": "멜버른의 대표적인 랜드마크에서 사진을 찍고 트램 투어를 시작합니다.",
+      "estimated_time": 30,
+      "is_stampPlace": 1
+    },
+    ...
+  ],
+  "summary": {
+    "total_time": 120,
+    "total_distance": 3.2,
+    "stamp_count": 2
+  },
+  "detailed_story": "이 루트는 멜버른의 도시적 매력을 짧은 시간에 체험할 수 있는 코스로, 첫 장소인 플린더스 스트리트 역부터..."
+}
+
+⚠️ 반드시 JSON만 출력하세요. 코드 블록(예: ```json)은 쓰지 마세요. 설명 문장도 출력하지 마세요.
+EOT;
+
+// Gemini 요청 전송
 $payload = [
     "contents" => [
         ["parts" => [["text" => $prompt]]]
@@ -46,37 +85,69 @@ $payload = [
 ];
 
 $ch = curl_init($gemini_url);
-curl_setopt($ch, CURLOPT_POST, 1);
+curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    'Content-Type: application/json'
-]);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 $response = curl_exec($ch);
 $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
+// 기본값
+$route = [];
+$summary = [
+    'total_time' => 120,
+    'total_distance' => 3.2,
+    'stamp_count' => 0
+];
 $story = '';
+$place_descriptions = [];
+
 if ($http_code === 200 && $response) {
     $data = json_decode($response, true);
-    if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
-        $story = $data['candidates'][0]['content']['parts'][0]['text'];
-    } else {
-        $story = 'AI 설명 생성에 실패했습니다.';
+    $ai_raw = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';
+
+    // 마크다운 제거
+    $cleaned = preg_replace('/```(json)?/i', '', $ai_raw);
+    $cleaned = trim($cleaned);
+
+    // JSON 추출
+    $json_start = strpos($cleaned, '{');
+    $json_end = strrpos($cleaned, '}');
+    if ($json_start !== false && $json_end !== false) {
+        $json_str = substr($cleaned, $json_start, $json_end - $json_start + 1);
+        $parsed_data = json_decode($json_str, true);
+
+        if ($parsed_data) {
+            if (isset($parsed_data['route'])) {
+                $route = $parsed_data['route'];
+
+                // 설명만 따로 분리
+                foreach ($route as $item) {
+                    if (isset($item['name']) && isset($item['description'])) {
+                        $place_descriptions[$item['name']] = $item['description'];
+                    }
+                }
+            }
+            if (isset($parsed_data['summary'])) {
+                $summary = $parsed_data['summary'];
+            }
+            if (isset($parsed_data['detailed_story'])) {
+                $story = $parsed_data['detailed_story'];
+            }
+        }
     }
 } else {
-    $story = "http_code: $http_code, response: $response";
+    $story = "AI 응답 실패 또는 일시적 오류";
 }
 
-// 4. 결과 반환
+// 결과 반환
 echo json_encode([
     'success' => true,
     'route' => $route,
-    'summary' => [
-        'total_time' => 120, // 예시: 120분 (2시간)
-        'total_distance' => 3.2, // 예시: 3.2km
-        'stamp_count' => 2 // 예시: 2개
-    ],
-    'story' => $story
-], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); 
+    'summary' => $summary,
+    'detailed_story' => $story,
+    'place_descriptions' => $place_descriptions
+], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
