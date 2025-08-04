@@ -1,20 +1,10 @@
 <?php
 header('Content-Type: application/json; charset=utf-8');
 
-// 환경변수 설정 파일 로드
-require_once __DIR__ . '/../includes/config.php';
-
-// CORS 허용 (보안 강화)
-$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-$allowed_origins = explode(',', ALLOWED_ORIGINS);
-if (in_array($origin, $allowed_origins)) {
-    header("Access-Control-Allow-Origin: $origin");
-} else {
-    header("Access-Control-Allow-Origin: " . APP_URL);
-}
-header("Access-Control-Allow-Credentials: true");
+// CORS 허용 (개발용, 보안 신경 안 써도 될 때)
+header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
 // OPTIONS 프리플라이트 요청 처리
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -26,53 +16,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $input = json_decode(file_get_contents('php://input'), true);
 $user_interest = $input['interest'] ?? '관광';
 $user_time = $input['time'] ?? '오전';
-$user_latitude = $input['latitude'] ?? null;
-$user_longitude = $input['longitude'] ?? null;
 
-// 2. Gemini API 호출 (환경변수 사용)
-$api_key = GEMINI_API_KEY;
-if (empty($api_key)) {
-    http_response_code(500);
-    echo json_encode(["error" => "Gemini API 키가 설정되지 않았습니다."]);
-    exit();
-}
+// 2. 임시 추천 경로 생성 (샘플 데이터)
+$route = [
+    ["name" => "플린더스 스트리트 역", "type" => "역"],
+    ["name" => "페더레이션 광장", "type" => "관광지"],
+    ["name" => "멜버른 박물관", "type" => "박물관"],
+    ["name" => "카페 데 그라운즈", "type" => "카페"]
+];
 
+// 3. Gemini API 호출 (REST, cURL)
+$api_key = 'AIzaSyAohHn9GzPsjMoxkTyD2ToW4dI5PeNSEUI';
 $gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $api_key;
 
-// 3. 사용자 위치 기반 맞춤형 프롬프트 생성
-$location_info = '';
-if ($user_latitude && $user_longitude) {
-    $location_info = "사용자의 현재 위치: 위도 {$user_latitude}, 경도 {$user_longitude}";
-} else {
-    $location_info = "사용자의 현재 위치 정보가 없습니다.";
-}
-
-$prompt = "당신은 멜버른 시티 투어 전문 가이드입니다. 다음 정보를 바탕으로 맞춤형 트램 여행 경로를 생성해주세요:
-
-{$location_info}
-사용자 관심사: {$user_interest}
-소요 시간: {$user_time}
-
-다음 형식으로 JSON 응답을 생성해주세요:
-{
-  \"route\": [
-    {
-      \"name\": \"장소명\",
-      \"type\": \"장소 유형\",
-      \"description\": \"장소 설명\",
-      \"estimated_time\": \"예상 소요시간(분)\",
-      \"is_stampPlace\": 1 또는 0
+// 프롬프트 생성 (장소별 순서, 각 장소에서 할 일, 다음 장소까지 소요 시간, 3줄 이내)
+$prompt = "아래는 멜버른 트램 여행 추천 경로입니다. 각 장소별로 한 줄씩, 해당 장소에서 할 일과 다음 장소까지 이동 시간(약 15분)을 포함해 설명해 주세요. 예시: 1. [장소명]: [설명]";
+foreach ($route as $idx => $place) {
+    $next = isset($route[$idx + 1]) ? $route[$idx + 1]['name'] : null;
+    $prompt .= "\n" . ($idx + 1) . ". " . $place['name'] . ":";
+    if ($next) {
+        $prompt .= " 다음 장소까지 이동 시간 약 15분.";
     }
-  ],
-  \"summary\": {
-    \"total_time\": \"총 소요시간(분)\",
-    \"total_distance\": \"총 거리(km)\",
-    \"stamp_count\": \"스탬프 획득 가능 개수\"
-  },
-  \"detailed_story\": \"전체 경로에 대한 상세한 스토리텔링 설명 (각 장소별 할 일, 이동 방법, 주의사항 포함)\"
 }
-
-멜버른의 실제 명소들을 사용하고, 35번 City Circle 트램 노선을 중심으로 경로를 구성해주세요. 각 장소는 실제 존재하는 곳이어야 합니다.";
 
 $payload = [
     "contents" => [
@@ -87,61 +52,31 @@ curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json'
 ]);
-curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true); // 보안 강화
-curl_setopt($ch, CURLOPT_TIMEOUT, 30); // 타임아웃 설정
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 $response = curl_exec($ch);
 $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
-$route = [];
-$summary = [
-    'total_time' => 120,
-    'total_distance' => 3.2,
-    'stamp_count' => 2
-];
 $story = '';
-
 if ($http_code === 200 && $response) {
     $data = json_decode($response, true);
     if (isset($data['candidates'][0]['content']['parts'][0]['text'])) {
-        $ai_response = $data['candidates'][0]['content']['parts'][0]['text'];
-        
-        // AI 응답에서 JSON 파싱 시도
-        $json_start = strpos($ai_response, '{');
-        $json_end = strrpos($ai_response, '}');
-        
-        if ($json_start !== false && $json_end !== false) {
-            $json_str = substr($ai_response, $json_start, $json_end - $json_start + 1);
-            $parsed_data = json_decode($json_str, true);
-            
-            if ($parsed_data) {
-                if (isset($parsed_data['route'])) {
-                    $route = $parsed_data['route'];
-                }
-                if (isset($parsed_data['summary'])) {
-                    $summary = $parsed_data['summary'];
-                }
-                if (isset($parsed_data['detailed_story'])) {
-                    $story = $parsed_data['detailed_story'];
-                }
-            }
-        }
-        
-        // JSON 파싱 실패 시 기본 설명 사용
-        if (empty($route)) {
-            $story = $ai_response;
-        }
+        $story = $data['candidates'][0]['content']['parts'][0]['text'];
     } else {
         $story = 'AI 설명 생성에 실패했습니다.';
     }
 } else {
-    $story = "AI 서비스에 일시적인 문제가 있습니다. 잠시 후 다시 시도해주세요.";
+    $story = "http_code: $http_code, response: $response";
 }
 
 // 4. 결과 반환
 echo json_encode([
     'success' => true,
     'route' => $route,
-    'summary' => $summary,
+    'summary' => [
+        'total_time' => 120, // 예시: 120분 (2시간)
+        'total_distance' => 3.2, // 예시: 3.2km
+        'stamp_count' => 2 // 예시: 2개
+    ],
     'story' => $story
 ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); 
