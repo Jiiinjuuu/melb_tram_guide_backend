@@ -2,13 +2,20 @@
 // stamp_check.php
 $origin = "https://melb-stamp-tour.netlify.app";
 
-if (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] === $origin) {
-    header("Access-Control-Allow-Origin: $origin");
-    header("Access-Control-Allow-Credentials: true");
-    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization");
-}
+// 환경변수 설정 파일 로드
+require_once __DIR__ . '/../includes/config.php';
 
+// CORS 설정
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowed_origins = explode(',', ALLOWED_ORIGINS);
+if (in_array($origin, $allowed_origins)) {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    header("Access-Control-Allow-Origin: " . APP_URL);
+}
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
@@ -28,7 +35,7 @@ require_once __DIR__ . '/db_connect.php';
 
 header('Content-Type: application/json');
 
-// ✅ 로그인 여부 확인
+// ✅ 로그인된 사용자 확인
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['status' => 'error', 'message' => '로그인이 필요합니다.']);
@@ -37,7 +44,8 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = $_SESSION['user_id'];
 
-// ✅ 입력값 확인
+
+// ✅ place_id 유효성 검사
 $data = json_decode(file_get_contents("php://input"), true);
 if (!isset($data['place_id'])) {
     http_response_code(400);
@@ -54,21 +62,11 @@ try {
 
     if ($stmt->fetch()) {
         echo json_encode(['status' => 'exists']);
-        exit;
-    }
-
-    // ✅ 이미지가 포함된 후기 있는지 확인
-    $stmt = $pdo->prepare("SELECT id FROM reviews WHERE user_id = ? AND place_id = ? AND image_url IS NOT NULL AND image_url != ''");
-    $stmt->execute([$user_id, $place_id]);
-
-    if ($stmt->fetch()) {
-        // ✅ 이미지 후기 있음 → 스탬프 발급
+    } else {
+        // ✅ 신규 스탬프 발급
         $stmt = $pdo->prepare("INSERT INTO stamps (user_id, place_id, earned_at) VALUES (?, ?, NOW())");
         $stmt->execute([$user_id, $place_id]);
         echo json_encode(['status' => 'new']);
-    } else {
-        // ❌ 이미지 없는 후기만 존재하거나 없음
-        echo json_encode(['status' => 'no_image']);
     }
 } catch (PDOException $e) {
     http_response_code(500);

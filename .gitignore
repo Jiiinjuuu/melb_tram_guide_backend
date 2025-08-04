@@ -1,12 +1,36 @@
-# macOS
-.DS_Store
+# Environment variables
+.env
+.env.local
+.env.production
+.env.staging
 
-# 개발툴 관련
+# Composer
+/vendor/
+composer.phar
+
+# IDE
 .vscode/
 .idea/
-
-# 임시파일
-*.log
 *.swp
 *.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Uploads (optional - if you want to ignore uploaded files)
+uploads/reviews/
+uploads/img/
+
+# Cache
+cache/
+tmp/
+
+# Database
+*.sql
+*.sqlite
 

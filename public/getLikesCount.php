@@ -2,27 +2,32 @@
 // melb_tram_api/public/getLikesCount.php
 
 // ✅ 1. CORS 설정
-header("Access-Control-Allow-Origin: https://melb-stamp-tour.netlify.app");
+// 환경변수 설정 파일 로드
+require_once __DIR__ . '/../includes/config.php';
+
+// CORS 설정
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowed_origins = explode(',', ALLOWED_ORIGINS);
+if (in_array($origin, $allowed_origins)) {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    header("Access-Control-Allow-Origin: " . APP_URL);
+}
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-// ✅ 2. 환경변수 로드
-require_once __DIR__ . '/../vendor/autoload.php';
-$dotenv = Dotenv\Dotenv::createImmutable(dirname(__DIR__));
-$dotenv->load();
-
-// ✅ 3. DB 연결
+// ✅ 2. DB 연결
 try {
     $pdo = new PDO(
-        "mysql:host=" . $_ENV['DB_HOST'] . ";port=" . $_ENV['DB_PORT'] . ";dbname=" . $_ENV['DB_NAME'],
-        $_ENV['DB_USER'],
-        $_ENV['DB_PASS'],
+        "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME,
+        DB_USERNAME,
+        DB_PASSWORD,
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
     );
 } catch (PDOException $e) {
@@ -31,10 +36,10 @@ try {
     exit();
 }
 
-// ✅ 4. 응답 타입 지정
+// ✅ 3. 응답 타입 지정
 header("Content-Type: application/json");
 
-// ✅ 5. 파라미터 검증
+// ✅ 4. 파라미터 검증
 if (!isset($_GET['review_id'])) {
     http_response_code(400);
     echo json_encode(["error" => "review_id가 필요합니다."]);
@@ -43,7 +48,7 @@ if (!isset($_GET['review_id'])) {
 
 $review_id = $_GET['review_id'];
 
-// ✅ 6. 좋아요 개수 조회
+// ✅ 5. 좋아요 개수 조회
 try {
     $stmt = $pdo->prepare("
         SELECT COUNT(*) AS like_count

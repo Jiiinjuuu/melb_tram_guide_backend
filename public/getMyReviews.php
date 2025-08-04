@@ -1,15 +1,20 @@
 <?php
 // melb_tram_api/public/getMyReviews.php
 
-$origin = "https://melb-stamp-tour.netlify.app";
+// 환경변수 설정 파일 로드
+require_once __DIR__ . '/../includes/config.php';
 
-if (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] === $origin) {
+// CORS 설정
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowed_origins = explode(',', ALLOWED_ORIGINS);
+if (in_array($origin, $allowed_origins)) {
     header("Access-Control-Allow-Origin: $origin");
-    header("Access-Control-Allow-Credentials: true");
-    header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization");
+} else {
+    header("Access-Control-Allow-Origin: " . APP_URL);
 }
-
+header("Access-Control-Allow-Credentials: true");
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
@@ -34,9 +39,9 @@ $dotenv->load();
 // ✅ 4. DB 연결
 try {
     $pdo = new PDO(
-        "mysql:host=" . $_ENV['DB_HOST'] . ";port=" . $_ENV['DB_PORT'] . ";dbname=" . $_ENV['DB_NAME'],
-        $_ENV['DB_USER'],
-        $_ENV['DB_PASS'],
+        "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME,
+        DB_USERNAME,
+        DB_PASSWORD,
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
     );
 } catch (PDOException $e) {
@@ -70,7 +75,7 @@ try {
     $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // ✅ 8. 이미지 URL 처리
-    $baseUrl = rtrim($_ENV['IMAGE_BASE_URL'], '/');
+    $baseUrl = rtrim(IMAGE_BASE_URL, '/');
     foreach ($reviews as &$review) {
         if (!empty($review['image_url'])) {
             $review['image_full_url'] = $baseUrl . '/' . ltrim($review['image_url'], '/');

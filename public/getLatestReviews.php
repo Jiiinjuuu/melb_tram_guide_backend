@@ -1,17 +1,27 @@
 <?php
 // melb_tram_api/public/getLatestReviews.php
 
-header("Access-Control-Allow-Origin: https://melb-stamp-tour.netlify.app");
+// 환경변수 설정 파일 로드
+require_once __DIR__ . '/../includes/config.php';
+
+// CORS 설정
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowed_origins = explode(',', ALLOWED_ORIGINS);
+if (in_array($origin, $allowed_origins)) {
+    header("Access-Control-Allow-Origin: $origin");
+} else {
+    header("Access-Control-Allow-Origin: " . APP_URL);
+}
 header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type, Authorization");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit();
 }
 
-require_once "../includes/env.php";   // ← 환경변수 불러오기
+require_once __DIR__ . "/../includes/env.php";   // ← 환경변수 불러오기
 require_once "db_connect.php";
 
 header("Content-Type: application/json");
@@ -37,7 +47,7 @@ try {
     $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // ✅ .env에서 IMAGE_BASE_URL 사용
-    $baseUrl = rtrim($_ENV['IMAGE_BASE_URL'], '/');
+    $baseUrl = rtrim(IMAGE_BASE_URL, '/');
 
     foreach ($reviews as &$review) {
         if (!empty($review['image_url'])) {
